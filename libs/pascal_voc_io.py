@@ -8,13 +8,17 @@ import codecs
 from libs.constants import DEFAULT_ENCODING
 from libs.ustr import ustr
 
-
 XML_EXT = '.xml'
 ENCODE_METHOD = DEFAULT_ENCODING
 
-class PascalVocWriter:
 
-    def __init__(self, foldername, filename, imgSize,databaseSrc='Unknown', localImgPath=None):
+class PascalVocWriter:
+    def __init__(self,
+                 foldername,
+                 filename,
+                 imgSize,
+                 databaseSrc='Unknown',
+                 localImgPath=None):
         self.foldername = foldername
         self.filename = filename
         self.databaseSrc = databaseSrc
@@ -29,7 +33,9 @@ class PascalVocWriter:
         """
         rough_string = ElementTree.tostring(elem, 'utf8')
         root = etree.fromstring(rough_string)
-        return etree.tostring(root, pretty_print=True, encoding=ENCODE_METHOD).replace("  ".encode(), "\t".encode())
+        return etree.tostring(root, pretty_print=True,
+                              encoding=ENCODE_METHOD).replace(
+                                  "  ".encode(), "\t".encode())
         # minidom does not support UTF-8
         '''reparsed = minidom.parseString(rough_string)
         return reparsed.toprettyxml(indent="\t", encoding=ENCODE_METHOD)'''
@@ -91,14 +97,18 @@ class PascalVocWriter:
             pose = SubElement(object_item, 'pose')
             pose.text = "Unspecified"
             truncated = SubElement(object_item, 'truncated')
-            if int(float(each_object['ymax'])) == int(float(self.imgSize[0])) or (int(float(each_object['ymin']))== 1):
-                truncated.text = "1" # max == height or min
-            elif (int(float(each_object['xmax']))==int(float(self.imgSize[1]))) or (int(float(each_object['xmin']))== 1):
-                truncated.text = "1" # max == width or min
+            if int(float(each_object['ymax'])) == int(float(
+                    self.imgSize[0])) or (int(float(
+                        each_object['ymin'])) == 1):
+                truncated.text = "1"  # max == height or min
+            elif (int(float(each_object['xmax'])) == int(float(
+                    self.imgSize[1]))) or (int(float(
+                        each_object['xmin'])) == 1):
+                truncated.text = "1"  # max == width or min
             else:
                 truncated.text = "0"
             difficult = SubElement(object_item, 'difficult')
-            difficult.text = str( bool(each_object['difficult']) & 1 )
+            difficult.text = str(bool(each_object['difficult']) & 1)
             bndbox = SubElement(object_item, 'bndbox')
             xmin = SubElement(bndbox, 'xmin')
             xmin.text = str(each_object['xmin'])
@@ -114,8 +124,9 @@ class PascalVocWriter:
         self.appendObjects(root)
         out_file = None
         if targetFile is None:
-            out_file = codecs.open(
-                self.filename + XML_EXT, 'w', encoding=ENCODE_METHOD)
+            out_file = codecs.open(self.filename + XML_EXT,
+                                   'w',
+                                   encoding=ENCODE_METHOD)
         else:
             out_file = codecs.open(targetFile, 'w', encoding=ENCODE_METHOD)
 
@@ -125,7 +136,6 @@ class PascalVocWriter:
 
 
 class PascalVocReader:
-
     def __init__(self, filepath):
         # shapes type:
         # [labbel, [(x1,y1), (x2,y2), (x3,y3), (x4,y4)], color, color, difficult]

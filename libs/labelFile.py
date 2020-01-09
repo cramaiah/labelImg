@@ -8,8 +8,9 @@ except ImportError:
 
 from base64 import b64encode, b64decode
 from libs.pascal_voc_io import PascalVocWriter
+from libs.form_io import FormWriter
 from libs.yolo_io import YOLOWriter
-from libs.pascal_voc_io import XML_EXT
+from libs.form_io import JSON_EXT
 import os.path
 import sys
 
@@ -21,7 +22,7 @@ class LabelFileError(Exception):
 class LabelFile(object):
     # It might be changed as window creates. By default, using XML ext
     # suffix = '.lif'
-    suffix = XML_EXT
+    suffix = JSON_EXT
 
     def __init__(self, filename=None):
         self.shapes = ()
@@ -29,8 +30,14 @@ class LabelFile(object):
         self.imageData = None
         self.verified = False
 
-    def savePascalVocFormat(self, filename, shapes, imagePath, imageData,
-                            lineColor=None, fillColor=None, databaseSrc=None):
+    def savePascalVocFormat(self,
+                            filename,
+                            shapes,
+                            imagePath,
+                            imageData,
+                            lineColor=None,
+                            fillColor=None,
+                            databaseSrc=None):
         imgFolderPath = os.path.dirname(imagePath)
         imgFolderName = os.path.split(imgFolderPath)[-1]
         imgFileName = os.path.basename(imagePath)
@@ -39,10 +46,14 @@ class LabelFile(object):
         # Pascal format
         image = QImage()
         image.load(imagePath)
-        imageShape = [image.height(), image.width(),
-                      1 if image.isGrayscale() else 3]
-        writer = PascalVocWriter(imgFolderName, imgFileName,
-                                 imageShape, localImgPath=imagePath)
+        imageShape = [
+            image.height(),
+            image.width(), 1 if image.isGrayscale() else 3
+        ]
+        writer = PascalVocWriter(imgFolderName,
+                                 imgFileName,
+                                 imageShape,
+                                 localImgPath=imagePath)
         writer.verified = self.verified
 
         for shape in shapes:
@@ -51,13 +62,20 @@ class LabelFile(object):
             # Add Chris
             difficult = int(shape['difficult'])
             bndbox = LabelFile.convertPoints2BndBox(points)
-            writer.addBndBox(bndbox[0], bndbox[1], bndbox[2], bndbox[3], label, difficult)
+            writer.addBndBox(bndbox[0], bndbox[1], bndbox[2], bndbox[3], label,
+                             difficult)
 
         writer.save(targetFile=filename)
         return
 
-    def saveYoloFormat(self, filename, shapes, imagePath, imageData, classList,
-                            lineColor=None, fillColor=None, databaseSrc=None):
+    def saveFormFormat(self,
+                       filename,
+                       fields,
+                       imagePath,
+                       imageData,
+                       lineColor=None,
+                       fillColor=None,
+                       databaseSrc=None):
         imgFolderPath = os.path.dirname(imagePath)
         imgFolderName = os.path.split(imgFolderPath)[-1]
         imgFileName = os.path.basename(imagePath)
@@ -66,10 +84,56 @@ class LabelFile(object):
         # Pascal format
         image = QImage()
         image.load(imagePath)
-        imageShape = [image.height(), image.width(),
-                      1 if image.isGrayscale() else 3]
-        writer = YOLOWriter(imgFolderName, imgFileName,
-                                 imageShape, localImgPath=imagePath)
+        imageShape = [
+            image.height(),
+            image.width(), 1 if image.isGrayscale() else 3
+        ]
+        writer = FormWriter(imgFolderName,
+                            imgFileName,
+                            imageShape,
+                            localImgPath=imagePath)
+        writer.verified = self.verified
+
+        for field in fields:
+            value_points = field.value['points']
+            value_label = field.value['label']
+            val_bndbox = LabelFile.convertPoints2BndBox(value_points)
+            if field.key:
+                key_points = field.key['points']
+                key_label = field.key['label']
+                key_bndbox = LabelFile.convertPoints2BndBox(key_points)
+                writer.addField(key_label, key_bndbox, value_label, val_bndbox)
+            else:
+                writer.addField(None, None, value_label, val_bndbox)
+
+        writer.save(targetFile=filename)
+        return
+
+    def saveYoloFormat(self,
+                       filename,
+                       shapes,
+                       imagePath,
+                       imageData,
+                       classList,
+                       lineColor=None,
+                       fillColor=None,
+                       databaseSrc=None):
+        imgFolderPath = os.path.dirname(imagePath)
+        imgFolderName = os.path.split(imgFolderPath)[-1]
+        imgFileName = os.path.basename(imagePath)
+        #imgFileNameWithoutExt = os.path.splitext(imgFileName)[0]
+        # Read from file path because self.imageData might be empty if saving to
+        # Pascal format
+        image = QImage()
+        image.load(imagePath)
+        imageShape = [
+            image.height(),
+            image.width(), 1 if image.isGrayscale() else 3
+        ]
+        writer = YOLOWriter(imgFolderName,
+                            imgFileName,
+                            imageShape,
+                            localImgPath=imagePath)
         writer.verified = self.verified
 
         for shape in shapes:
@@ -78,7 +142,8 @@ class LabelFile(object):
             # Add Chris
             difficult = int(shape['difficult'])
             bndbox = LabelFile.convertPoints2BndBox(points)
-            writer.addBndBox(bndbox[0], bndbox[1], bndbox[2], bndbox[3], label, difficult)
+            writer.addBndBox(bndbox[0], bndbox[1], bndbox[2], bndbox[3], label,
+                             difficult)
 
         writer.save(targetFile=filename, classList=classList)
         return
