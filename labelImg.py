@@ -892,6 +892,7 @@ class MainWindow(QMainWindow, WindowMixin):
         for label, points, line_color, fill_color, difficult in shapes:
             if points is None:
                 key = None
+                isKey = False
                 continue
             shape = Shape(label=label)
             for x, y in points:
