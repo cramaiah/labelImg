@@ -45,10 +45,12 @@ class Shape(object):
 
     def __init__(self,
                  label=None,
+                 tag=None,
                  line_color=None,
                  difficult=False,
                  paintLabel=False):
         self.label = label
+        self.tag = tag
         self.points = []
         self.fill = False
         self.selected = False
@@ -136,7 +138,7 @@ class Shape(object):
                         self.label = ""
                     if (min_y < MIN_Y_LABEL):
                         min_y += MIN_Y_LABEL
-                    painter.drawText(min_x, min_y, self.label)
+                    painter.drawText(min_x, min_y, self.tag + ':' + self.label)
 
             if self.fill:
                 color = self.select_fill_color if self.selected else self.fill_color

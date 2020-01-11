@@ -59,11 +59,12 @@ class LabelFile(object):
         for shape in shapes:
             points = shape['points']
             label = shape['label']
+            tag = shape['tag']
             # Add Chris
             difficult = int(shape['difficult'])
             bndbox = LabelFile.convertPoints2BndBox(points)
             writer.addBndBox(bndbox[0], bndbox[1], bndbox[2], bndbox[3], label,
-                             difficult)
+                             tag, difficult)
 
         writer.save(targetFile=filename)
         return
@@ -97,14 +98,18 @@ class LabelFile(object):
         for field in fields:
             value_points = field.value['points']
             value_label = field.value['label']
+            value_tag = field.value['tag']
             val_bndbox = LabelFile.convertPoints2BndBox(value_points)
             if field.key:
                 key_points = field.key['points']
                 key_label = field.key['label']
+                key_tag = field.key['tag']
                 key_bndbox = LabelFile.convertPoints2BndBox(key_points)
-                writer.addField(key_label, key_bndbox, value_label, val_bndbox)
+                writer.addField(key_label, key_tag, key_bndbox, value_label,
+                                value_tag, val_bndbox)
             else:
-                writer.addField(None, None, value_label, val_bndbox)
+                writer.addField(None, None, None, value_label, value_tag,
+                                val_bndbox)
 
         writer.save(targetFile=filename)
         return
@@ -139,6 +144,7 @@ class LabelFile(object):
         for shape in shapes:
             points = shape['points']
             label = shape['label']
+            tag = shape['tag']
             # Add Chris
             difficult = int(shape['difficult'])
             bndbox = LabelFile.convertPoints2BndBox(points)

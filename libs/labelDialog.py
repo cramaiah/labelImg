@@ -12,12 +12,18 @@ BB = QDialogButtonBox
 
 
 class LabelDialog(QDialog):
-
-    def __init__(self, text="Enter object label", parent=None, listItem=None):
+    def __init__(self,
+                 text="Enter object label",
+                 tag='',
+                 parent=None,
+                 listItem=None,
+                 tagList=[]):
         super(LabelDialog, self).__init__(parent)
 
         self.edit = QLineEdit()
         self.edit.setText(text)
+        self.editTag = QLineEdit()
+        self.editTag.setText(tag)
         self.edit.setValidator(labelValidator())
         self.edit.editingFinished.connect(self.postProcess)
 
@@ -27,8 +33,16 @@ class LabelDialog(QDialog):
         completer.setModel(model)
         self.edit.setCompleter(completer)
 
-        layout = QVBoxLayout()
-        layout.addWidget(self.edit)
+        modelTag = QStringListModel()
+        modelTag.setStringList(tagList)
+        completerTag = QCompleter()
+        completerTag.setModel(modelTag)
+        self.editTag.setCompleter(completerTag)
+
+        layout = QFormLayout()
+        layout.addRow('Label', self.edit)
+        layout.addRow('Tag', self.editTag)
+
         self.buttonBox = bb = BB(BB.Ok | BB.Cancel, Qt.Horizontal, self)
         bb.button(BB.Ok).setIcon(newIcon('done'))
         bb.button(BB.Cancel).setIcon(newIcon('undo'))
@@ -43,6 +57,15 @@ class LabelDialog(QDialog):
             self.listWidget.itemClicked.connect(self.listItemClick)
             self.listWidget.itemDoubleClicked.connect(self.listItemDoubleClick)
             layout.addWidget(self.listWidget)
+
+        if tagList is not None and len(tagList) > 0:
+            self.tagListWidget = QListWidget(self)
+            for item in tagList:
+                self.tagListWidget.addItem(item)
+            self.tagListWidget.itemClicked.connect(self.tagListClick)
+            self.tagListWidget.itemDoubleClicked.connect(
+                self.tagListDoubleClick)
+            layout.addWidget(self.tagListWidget)
 
         self.setLayout(layout)
 
@@ -68,7 +91,8 @@ class LabelDialog(QDialog):
         self.edit.setFocus(Qt.PopupFocusReason)
         if move:
             self.move(QCursor.pos())
-        return self.edit.text() if self.exec_() else None
+        return (self.edit.text(),
+                self.editTag.text()) if self.exec_() else (None, None)
 
     def listItemClick(self, tQListWidgetItem):
         try:
@@ -80,4 +104,16 @@ class LabelDialog(QDialog):
 
     def listItemDoubleClick(self, tQListWidgetItem):
         self.listItemClick(tQListWidgetItem)
+        self.validate()
+
+    def tagListClick(self, tQListWidgetItem):
+        try:
+            text = tQListWidgetItem.text().trimmed()
+        except AttributeError:
+            # PyQt5: AttributeError: 'str' object has no attribute 'trimmed'
+            text = tQListWidgetItem.text().strip()
+        self.edit.setText(text)
+
+    def tagListDoubleClick(self, tQListWidgetItem):
+        self.tagList(tQListWidgetItem)
         self.validate()

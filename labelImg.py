@@ -807,9 +807,10 @@ class MainWindow(QMainWindow, WindowMixin):
         item = self.currentItem()
         if not item:
             return
-        text = self.labelDialog.popUp(item.text())
+        text, tag = self.labelDialog.popUp(item.text())
         if text is not None:
             item.setText(text)
+            item.setTag(tag)
             item.setBackground(generateColorByText(text))
             self.setDirty()
 
@@ -867,7 +868,7 @@ class MainWindow(QMainWindow, WindowMixin):
 
     def addLabel(self, shape):
         shape.paintLabel = self.displayLabelOption.isChecked()
-        item = HashableQListWidgetItem(shape.label)
+        item = HashableQListWidgetItem(shape.tag + ':' + shape.label)
         item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
         item.setCheckState(Qt.Checked)
         item.setBackground(generateColorByText(shape.label))
@@ -889,12 +890,12 @@ class MainWindow(QMainWindow, WindowMixin):
     def loadLabels(self, shapes):
         s = []
         isKey = True
-        for label, points, line_color, fill_color, difficult in shapes:
+        for label, tag, points, line_color, fill_color, difficult in shapes:
             if points is None:
                 key = None
                 isKey = False
                 continue
-            shape = Shape(label=label)
+            shape = Shape(label=label, tag=tag)
             for x, y in points:
 
                 # Ensure the labels are within the bounds of the image. If not, fix them.
@@ -937,6 +938,7 @@ class MainWindow(QMainWindow, WindowMixin):
                 return None
             return dict(
                 label=s.label,
+                tag = s.tag,
                 line_color=s.line_color.getRgb(),
                 fill_color=s.fill_color.getRgb(),
                 points=[(p.x(), p.y()) for p in s.points],
@@ -1003,8 +1005,10 @@ class MainWindow(QMainWindow, WindowMixin):
     def labelItemChanged(self, item):
         shape = self.itemsToShapes[item]
         label = item.text()
+        tag = item.tag()
         if label != shape.label:
             shape.label = item.text()
+            shape.tag = item.tag()
             shape.line_color = generateColorByText(shape.label)
             self.setDirty()
         else:  # User probably changed item visibility
@@ -1016,6 +1020,7 @@ class MainWindow(QMainWindow, WindowMixin):
 
         position MUST be in global coordinates.
         """
+        tag = None
         if not self.useDefaultLabelCheckbox.isChecked(
         ) or not self.defaultLabelTextLine.text():
             if len(self.labelHist) > 0:
@@ -1026,8 +1031,9 @@ class MainWindow(QMainWindow, WindowMixin):
             if self.singleClassMode.isChecked() and self.lastLabel:
                 text = self.lastLabel
             else:
-                text = self.labelDialog.popUp(text=self.prevLabelText)
+                text, tag = self.labelDialog.popUp(text=self.prevLabelText)
                 self.lastLabel = text
+                self.lastTag = tag
         else:
             text = self.defaultLabelTextLine.text()
 
@@ -1036,7 +1042,7 @@ class MainWindow(QMainWindow, WindowMixin):
         if text is not None:
             self.prevLabelText = text
             generate_color = generateColorByText(text)
-            shape = self.canvas.setLastLabel(text, generate_color,
+            shape = self.canvas.setLastLabel(text, tag, generate_color,
                                              generate_color)
             self.addLabel(shape)
             if self.isField and not self.isKey:

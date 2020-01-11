@@ -19,14 +19,15 @@ class FormReader:
     def parseJSON(self):
         def to_shape(shape):
             if not shape:
-                self.shapes.append((None, None, None, None, False))
+                self.shapes.append((None, None, None, None, None, False))
                 return
             xmin = int(float(shape['xmin']))
             ymin = int(float(shape['ymin']))
             xmax = int(float(shape['xmax']))
             ymax = int(float(shape['ymax']))
             points = [(xmin, ymin), (xmax, ymin), (xmax, ymax), (xmin, ymax)]
-            self.shapes.append((shape['label'], points, None, None, False))
+            self.shapes.append(
+                (shape['label'], shape['tag'], points, None, None, False))
 
         with open(self.filepath) as json_file:
             self.fields = json.load(json_file)
@@ -50,12 +51,14 @@ class FormWriter():
         self.localImgPath = localImgPath
         self.verified = False
 
-    def addField(self, key_label, key_points, value_label, value_points):
-        def gen_dict(label, points):
+    def addField(self, key_label, key_tag, key_points, value_label, value_tag,
+                 value_points):
+        def gen_dict(label, tag, points):
             if not label or not points:
                 return None
             return {
                 'label': label,
+                'tag': tag,
                 'xmin': points[0],
                 'ymin': points[1],
                 'xmax': points[2],
@@ -63,8 +66,10 @@ class FormWriter():
             }
 
         self.fieldlist.append({
-            'key': gen_dict(key_label, key_points),
-            'value': gen_dict(value_label, value_points)
+            'key':
+            gen_dict(key_label, key_tag, key_points),
+            'value':
+            gen_dict(value_label, value_tag, value_points)
         })
 
     def save(self, targetFile=None):
