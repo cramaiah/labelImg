@@ -77,6 +77,17 @@ class LabelFile(object):
                        lineColor=None,
                        fillColor=None,
                        databaseSrc=None):
+        def get_table(tables, shape_bbox):
+            for table in tables:
+                if encapsulated(table[0], shape_bbox):
+                    return table
+            return None
+
+        def encapsulated(bbox1, bbox2):
+            if bbox1[0] <= bbox2[0] and bbox1[1] <= bbox2[1] and bbox1[
+                    2] >= bbox2[2] and bbox1[3] >= bbox2[3]:
+                return True
+
         imgFolderPath = os.path.dirname(imagePath)
         imgFolderName = os.path.split(imgFolderPath)[-1]
         imgFileName = os.path.basename(imagePath)
@@ -95,21 +106,36 @@ class LabelFile(object):
                             localImgPath=imagePath)
         writer.verified = self.verified
 
+        tables = []
         for field in fields:
             value_points = field.value['points']
             value_label = field.value['label']
             value_tag = field.value['tag']
-            val_bndbox = LabelFile.convertPoints2BndBox(value_points)
+            value_bndbox = LabelFile.convertPoints2BndBox(value_points)
+            if not field.key and value_tag == '#table#':
+                tables.append((value_bndbox, value_label))
+                writer.addTable(value_label, value_bndbox)
+
+        for field in fields:
+            value_points = field.value['points']
+            value_label = field.value['label']
+            value_tag = field.value['tag']
+            value_bndbox = LabelFile.convertPoints2BndBox(value_points)
             if field.key:
                 key_points = field.key['points']
                 key_label = field.key['label']
                 key_tag = field.key['tag']
                 key_bndbox = LabelFile.convertPoints2BndBox(key_points)
                 writer.addField(key_label, key_tag, key_bndbox, value_label,
-                                value_tag, val_bndbox)
-            else:
-                writer.addField(None, None, None, value_label, value_tag,
-                                val_bndbox)
+                                value_tag, value_bndbox)
+            elif value_tag != '#table#':
+                table = get_table(tables, value_bndbox)
+                if table:
+                    writer.addCell(table[1], value_label, value_tag,
+                                   value_bndbox)
+                else:
+                    writer.addField(None, None, None, value_label, value_tag,
+                                    value_bndbox)
 
         writer.save(targetFile=filename)
         return

@@ -20,8 +20,8 @@ except ImportError:
 
 
 class HashableQListWidgetItem(QListWidgetItem):
-
-    def __init__(self, *args):
+    def __init__(self, tag, *args):
+        self.tag = tag
         super(HashableQListWidgetItem, self).__init__(*args)
 
     def __hash__(self):

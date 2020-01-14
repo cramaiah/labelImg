@@ -202,6 +202,7 @@ class MainWindow(QMainWindow, WindowMixin):
         self.fields = []
         self.isField = False
         self.isKey = False
+        self.isTable = False
         # Actions
         action = partial(newAction, self)
         quit = action(getStr('quit'), self.close, 'Ctrl+Q', 'quit',
@@ -275,15 +276,21 @@ class MainWindow(QMainWindow, WindowMixin):
 
         create = action('Create Value',
                         self.createShape,
-                        'w',
+                        'v',
                         'new',
                         getStr('crtBoxDetail'),
                         enabled=False)
         createKV = action("Create KeyValue",
                           self.createField,
-                          'w',
+                          'k',
                           'new',
                           "Draw bbox for key",
+                          enabled=False)
+        createTable = action("Create Table",
+                          self.createTable,
+                          't',
+                          'new',
+                          "Draw bbox for table",
                           enabled=False)
         delete = action(getStr('delBox'),
                         self.deleteSelectedShape,
@@ -426,6 +433,7 @@ class MainWindow(QMainWindow, WindowMixin):
             lineColor=color1,
             create=create,
             createKV=createKV,
+            createTable=createTable,
             delete=delete,
             edit=edit,
             copy=copy,
@@ -447,10 +455,10 @@ class MainWindow(QMainWindow, WindowMixin):
             advanced=(),
             editMenu=(edit, copy, delete, None, color1,
                       self.drawSquaresOption),
-            beginnerContext=(create, createKV, edit, copy, delete),
+            beginnerContext=(create, createKV, createTable, edit, copy, delete),
             advancedContext=(createMode, editMode, edit, copy, delete,
                              shapeLineColor, shapeFillColor),
-            onLoadActive=(close, create, createKV, createMode, editMode),
+            onLoadActive=(close, create, createKV, createTable, createMode, editMode),
             onShapesPresent=(saveAs, hideAll, showAll))
 
         self.menus = struct(file=self.menu('&File'),
@@ -501,7 +509,7 @@ class MainWindow(QMainWindow, WindowMixin):
         self.tools = self.toolbar('Tools')
         self.actions.beginner = (open, opendir, changeSavedir, openNextImg,
                                  openPrevImg, verify, save, save_format, None,
-                                 create, createKV, copy, delete, None, zoomIn,
+                                 create, createKV, createTable, copy, delete, None, zoomIn,
                                  zoom, zoomOut, fitWindow, fitWidth)
 
         self.actions.advanced = (open, opendir, changeSavedir, openNextImg,
@@ -658,7 +666,7 @@ class MainWindow(QMainWindow, WindowMixin):
         self.canvas.menus[0].clear()
         addActions(self.canvas.menus[0], menu)
         self.menus.edit.clear()
-        actions = (self.actions.create,self.actions.createKV) if self.beginner()\
+        actions = (self.actions.create,self.actions.createKV, self.actions.createTable) if self.beginner()\
             else (self.actions.createMode, self.actions.editMode)
         addActions(self.menus.edit, actions + self.actions.editMenu)
 
@@ -679,6 +687,7 @@ class MainWindow(QMainWindow, WindowMixin):
         self.actions.save.setEnabled(False)
         self.actions.create.setEnabled(True)
         self.actions.createKV.setEnabled(True)
+        self.actions.createTable.setEnabled(True)
 
     def toggleActions(self, value=True):
         """Enable/Disable widgets which depend on an opened image."""
@@ -746,14 +755,25 @@ class MainWindow(QMainWindow, WindowMixin):
         self.canvas.setEditing(False)
         self.actions.create.setEnabled(False)
         self.actions.createKV.setEnabled(False)
+        self.actions.createTable.setEnabled(False)
 
     def createField(self):
         assert self.beginner()
         self.canvas.setEditing(False)
         self.actions.createKV.setEnabled(False)
         self.actions.create.setEnabled(False)
+        self.actions.createTable.setEnabled(False)
         self.isField = True
         self.isKey = True
+        self.isTable = False
+
+    def createTable(self):
+        assert self.beginner()
+        self.canvas.setEditing(False)
+        self.actions.createKV.setEnabled(False)
+        self.actions.create.setEnabled(False)
+        self.actions.createTable.setEnabled(False)
+        self.isTable = True
 
     def toggleDrawingSensitive(self, drawing=True):
         """In the middle of drawing, toggling between modes should be disabled."""
@@ -765,6 +785,7 @@ class MainWindow(QMainWindow, WindowMixin):
             self.canvas.restoreCursor()
             self.actions.create.setEnabled(True)
             self.actions.createKV.setEnabled(True)
+            self.actions.createTable.setEnabled(True)
 
     def toggleDrawMode(self, edit=True):
         self.canvas.setEditing(edit)
@@ -807,10 +828,10 @@ class MainWindow(QMainWindow, WindowMixin):
         item = self.currentItem()
         if not item:
             return
-        text, tag = self.labelDialog.popUp(item.text())
+        text, tag = self.labelDialog.popUp(item.text(), item.tag)
         if text is not None:
             item.setText(text)
-            item.setTag(tag)
+            item.tag = tag
             item.setBackground(generateColorByText(text))
             self.setDirty()
 
@@ -868,7 +889,7 @@ class MainWindow(QMainWindow, WindowMixin):
 
     def addLabel(self, shape):
         shape.paintLabel = self.displayLabelOption.isChecked()
-        item = HashableQListWidgetItem(shape.tag + ':' + shape.label)
+        item = HashableQListWidgetItem(shape.tag, shape.label)
         item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
         item.setCheckState(Qt.Checked)
         item.setBackground(generateColorByText(shape.label))
@@ -1005,10 +1026,10 @@ class MainWindow(QMainWindow, WindowMixin):
     def labelItemChanged(self, item):
         shape = self.itemsToShapes[item]
         label = item.text()
-        tag = item.tag()
+        tag = item.tag
         if label != shape.label:
             shape.label = item.text()
-            shape.tag = item.tag()
+            shape.tag = item.tag
             shape.line_color = generateColorByText(shape.label)
             self.setDirty()
         else:  # User probably changed item visibility
@@ -1053,13 +1074,19 @@ class MainWindow(QMainWindow, WindowMixin):
                 self.isKey = False
             elif self.isField and self.isKey:
                 self.isKey = False
-            elif not self.isField:
+            elif not self.isField and not self.isTable:
+                self.fields += [Field(None, self.canvas.shapes[-1])]
+            elif not self.isField and self.isTable:
+                self.isTable = False
+                shape = self.canvas.setLastLabel(text, '#table#', generate_color,
+                                             generate_color)
                 self.fields += [Field(None, self.canvas.shapes[-1])]
             if self.beginner():  # Switch to edit mode.
                 if not self.isField:
                     self.canvas.setEditing(True)
                     self.actions.create.setEnabled(True)
                     self.actions.createKV.setEnabled(True)
+                    self.actions.createTable.setEnabled(True)
             else:
                 self.actions.editMode.setEnabled(True)
             self.setDirty()
