@@ -710,6 +710,7 @@ class MainWindow(QMainWindow, WindowMixin):
         self.imageData = None
         self.labelFile = None
         self.canvas.resetState()
+        self.fields.clear()
         self.labelCoordinates.clear()
 
     def currentItem(self):
