@@ -829,10 +829,22 @@ class MainWindow(QMainWindow, WindowMixin):
         item = self.currentItem()
         if not item:
             return
+
         text, tag = self.labelDialog.popUp(item.text(), item.tag)
         if text is not None:
+            for field in self.fields:
+                if field.key:
+                    if field.key['label'] == item.text() and field.key['tag'] == item.tag:
+                        field.key['label'] = text
+                        field.key['tag'] = tag
+                        break
+                elif field.value.label == item.text() and field.value.tag == item.tag:
+                        field.value.label = text
+                        field.value.tag = tag
+                        break
             item.setText(text)
             item.tag = tag
+
             item.setBackground(generateColorByText(text))
             self.setDirty()
 
