@@ -834,11 +834,11 @@ class MainWindow(QMainWindow, WindowMixin):
         if text is not None:
             for field in self.fields:
                 if field.key:
-                    if field.key['label'] == item.text() and field.key['tag'] == item.tag:
-                        field.key['label'] = text
-                        field.key['tag'] = tag
+                    if field.key.label == item.text() and field.key.tag == item.tag:
+                        field.key.label = text
+                        field.key.tag = tag
                         break
-                elif field.value.label == item.text() and field.value.tag == item.tag:
+                if field.value.label == item.text() and field.value.tag == item.tag:
                         field.value.label = text
                         field.value.tag = tag
                         break
