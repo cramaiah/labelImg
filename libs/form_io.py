@@ -18,7 +18,7 @@ class FormReader:
         return self.shapes
 
     def parseJSON(self):
-        def to_shape(shape):
+        def to_shape(shape, type='key'):
             if not shape:
                 self.shapes.append((None, None, None, None, None, False))
                 return
@@ -27,8 +27,9 @@ class FormReader:
             xmax = int(float(shape['bbox']['xmax']))
             ymax = int(float(shape['bbox']['ymax']))
             points = [(xmin, ymin), (xmax, ymin), (xmax, ymax), (xmin, ymax)]
+            color = (239, 86, 117, 100) if type == 'key' else (255, 166, 0, 100)
             self.shapes.append(
-                (shape['label'], shape['tag'], points, None, None, False))
+                (shape['label'], shape['tag'], points, color, None, False))
 
         with open(self.filepath) as json_file:
             json_str = json.load(json_file)
@@ -39,8 +40,22 @@ class FormReader:
                 self.fields.append({'key': None, 'value': cell})
             self.fields.append({'key': None, 'value': table})
         for field in self.fields:
-            to_shape(field['key'])
-            to_shape(field['value'])
+            to_shape(field['key'], type='key')
+            to_shape(field['value'], type='value')
+            # add key value link if it is a kv pair
+            if field['key'] is not None:
+                bbox_key = field['key']['bbox']
+                bbox_value = field['value']['bbox']
+                start_point = (int(float(bbox_key['xmin'] + bbox_key['xmax']) / 2.0), int(float(bbox_key['ymin'] + bbox_key['ymax']) / 2.0))
+                end_point = (int(float(bbox_value['xmin'] + bbox_value['xmax']) / 2.0), int(float(bbox_value['ymin'] + bbox_value['ymax']) / 2.0))
+                self.shapes.append(
+                    ('link',
+                     'link',
+                     [(start_point[0], start_point[1]), (end_point[0], end_point[1]), (start_point[0], start_point[1]), (end_point[0], end_point[1])],
+                     (0, 63, 92, 100),
+                     None,
+                     False)
+                )
 
 
 class FormWriter():
