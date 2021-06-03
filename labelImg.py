@@ -7,6 +7,8 @@ import platform
 import re
 import sys
 import subprocess
+import numpy as np
+
 
 from functools import partial
 from collections import defaultdict
@@ -853,6 +855,7 @@ class MainWindow(QMainWindow, WindowMixin):
         currIndex = self.mImgList.index(ustr(item.text()))
         if currIndex < len(self.mImgList):
             filename = self.mImgList[currIndex]
+            self.cur_filename = filename
             if filename:
                 self.loadFile(filename)
 
@@ -1107,6 +1110,9 @@ class MainWindow(QMainWindow, WindowMixin):
 
             if text not in self.labelHist:
                 self.labelHist.append(text)
+            if not self.isField and not self.isKey:
+                self.saveFile()
+                self.loadRecent(None)
         else:
             # self.canvas.undoLastLine()
             self.canvas.resetAllLines()
@@ -1369,7 +1375,10 @@ class MainWindow(QMainWindow, WindowMixin):
         settings.save()
 
     def loadRecent(self, filename):
+        if filename is None:
+            filename = self.cur_filename
         if self.mayContinue():
+            self.cur_filename = filename
             self.loadFile(filename)
 
     def scanAllImages(self, folderPath):
@@ -1425,6 +1434,7 @@ class MainWindow(QMainWindow, WindowMixin):
             if filename:
                 if isinstance(filename, (tuple, list)):
                     filename = filename[0]
+            self.cur_filename = filename
             self.loadPascalXMLByFilename(filename)
 
     def openDirDialog(self, _value=False, dirpath=None, silent=False):
@@ -1503,6 +1513,7 @@ class MainWindow(QMainWindow, WindowMixin):
         if currIndex - 1 >= 0:
             filename = self.mImgList[currIndex - 1]
             if filename:
+                self.cur_filename = filename
                 self.loadFile(filename)
 
     def openNextImg(self, _value=False):
@@ -1530,6 +1541,7 @@ class MainWindow(QMainWindow, WindowMixin):
                 filename = self.mImgList[currIndex + 1]
 
         if filename:
+            self.cur_filename = filename
             self.loadFile(filename)
 
     def openFile(self, _value=False):
@@ -1548,6 +1560,7 @@ class MainWindow(QMainWindow, WindowMixin):
         if filename:
             if isinstance(filename, (tuple, list)):
                 filename = filename[0]
+            self.cur_filename = filename
             self.loadFile(filename)
 
     def saveFile(self, _value=False):
@@ -1636,15 +1649,65 @@ class MainWindow(QMainWindow, WindowMixin):
             self.canvas.update()
             self.setDirty()
 
+
+
     def deleteSelectedShape(self):
+
+        def bb_intersection_over_union(boxA, boxB):
+            # determine the (x, y)-coordinates of the intersection rectangle
+            # the four numbers in the box are xmin, ymin, xmax, ymax
+            xA = max(boxA[0], boxB[0])
+            yA = max(boxA[1], boxB[1])
+            xB = min(boxA[2], boxB[2])
+            yB = min(boxA[3], boxB[3])
+            # compute the area of intersection rectangle
+            interArea = max(0, xB - xA + 1) * max(0, yB - yA + 1)
+            # compute the area of both the prediction and ground-truth
+            # rectangles
+            boxAArea = (boxA[2] - boxA[0] + 1) * (boxA[3] - boxA[1] + 1)
+            boxBArea = (boxB[2] - boxB[0] + 1) * (boxB[3] - boxB[1] + 1)
+            # compute the intersection over union by taking the intersection
+            # area and dividing it by the sum of prediction + ground-truth
+            # areas - the interesection area
+            iou = interArea / float(boxAArea + boxBArea - interArea)
+            # return the intersection over union value
+            return iou
+
+        def format_shape(s):
+            if not s:
+                return None
+            return dict(
+                label=s.label,
+                tag = s.tag,
+                line_color=s.line_color.getRgb(),
+                fill_color=s.fill_color.getRgb(),
+                points=[(p.x(), p.y()) for p in s.points],
+                # add chris
+                difficult=s.difficult)
+
+        def format_field(f):
+            return Field(format_shape(f.key), format_shape(f.value))
+
         found = False
         if self.canvas.selectedShape:
             shape = self.canvas.selectedShape
+            shape_formated = format_shape(shape)
+            fields_formated = [format_field(field) for field in self.fields]
+            bbox_shape = list(LabelFile.convertPoints2BndBox(shape_formated['points']))
+
             for i, field in enumerate(self.fields):
                 if field.value:
-                    if field.value.label == shape.label and field.value.tag == shape.tag:
+                    bbox_field = list(LabelFile.convertPoints2BndBox(fields_formated[i].value['points']))
+                    iou = bb_intersection_over_union(bbox_shape, bbox_field)
+                    if iou > 0.8 and field.value.label == shape.label and field.value.tag == shape.tag:
                        found = True
-                       break 
+                       break
+                if field.key:
+                    bbox_field = list(LabelFile.convertPoints2BndBox(fields_formated[i].key['points']))
+                    iou = bb_intersection_over_union(bbox_shape, bbox_field)
+                    if iou > 0.8 and field.key.label == shape.label and field.key.tag == shape.tag:
+                        found = True
+                        break
         if found:
             del self.fields[i]
         self.remLabel(self.canvas.deleteSelected())
@@ -1652,6 +1715,11 @@ class MainWindow(QMainWindow, WindowMixin):
         if self.noShapes():
             for action in self.actions.onShapesPresent:
                 action.setEnabled(False)
+
+        # reload the changes
+        self.saveFile()
+        self.loadRecent(None)
+
 
     def chshapeLineColor(self):
         color = self.colorDialog.getColor(self.lineColor,
