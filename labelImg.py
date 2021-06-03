@@ -951,12 +951,13 @@ class MainWindow(QMainWindow, WindowMixin):
                 shape.fill_color = QColor(*fill_color)
             else:
                 shape.fill_color = generateColorByText(label)
-            if not isKey:
-                self.fields += [Field(key, shape)]
-                isKey = True
-            else:
-                key = shape
-                isKey = False
+            if shape.tag != "link":
+                if not isKey:
+                    self.fields += [Field(key, shape)]
+                    isKey = True
+                else:
+                    key = shape
+                    isKey = False
             self.addLabel(shape)
 
         self.canvas.loadShapes(s)
